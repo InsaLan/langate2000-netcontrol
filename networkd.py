@@ -1,7 +1,7 @@
 import config
 import os, struct
 import socket, pickle
-from ipset import Ipset, get_ip, get_mac
+from ipset import Ipset, get_ip, get_mac, NetworkError
 
 """
 This is the main script for langate2000-networkd.
