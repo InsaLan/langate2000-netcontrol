@@ -24,7 +24,7 @@ class Ipset:
     def __init__(self, name):
         self.name = name
 
-    def create(self, typ, timeout=None, counters=True, skbinfo=True, comment=False, **kwargs):
+    def create(self, typ, timeout=None, counters=True, skbinfo=True, comment=False, exist=True, **kwargs):
         args = [self.name, typ]
         if timeout:
             args += ["timeout", timeout]
@@ -34,6 +34,8 @@ class Ipset:
             args += ["comment"]
         if skbinfo:
             args += ["skbinfo"]
+        if exist:
+            args += ["-exist"]
         for k,v in [(k, kwargs[k]) for k in kwargs]:
             if type(v)==bool or v==None:
                 if v:
@@ -52,35 +54,73 @@ class Ipset:
         if not success:
             raise IpsetError(err)
 
-    def add(self, entry):
-        pass
+    def add(self, entry, timeout=None, packets=None, bytes=None, comment=None,
+            skbmark=None, skbprio=None, skbqueue=None, nomatch=False, exist=True):
+        args = [self.name, entry]
+        if timeout:
+            args += ["timeout", timeout]
+        if packets:
+            args += ["packets", packets]
+        if bytes:
+            args += ["bytes", bytes]
+        if comment:
+            args += ["comment", comment]
+        if skbmark:
+            args += ["skbmark", skbmark]
+        if skbprio:
+            args += ["skbprio", skbprio]
+        if skbqueue:
+            args += ["skbqueue", skbqueue]
+        if nomatch:
+            args += ["namatch"]
+        if exist:
+            args += ["-exist"]
 
-    def delete(self, entry):
-        pass
+        success, _, err = _run_cmd("add", args)
+
+        if not success:
+            raise IpsetError(err)
+
+    def delete(self, entry, exist=True):
+        args = [self.name, entry]
+        if exist:
+            args += ["-exist"]
+
+        success, _, err = _run_cmd("del", args)
+
+        if not success:
+            raise IpsetError(err)
 
     def test(self, entry):
-        pass
+        success, _, err = _run_cmd("del", [entry])
+        if success:
+            return True
+        if "is NOT in set" in err:
+            return False
+        raise IpsetError(err)
 
     def list(self):
         pass
 
-    def save(self):
-        pass
-
-    def restore(self):
-        pass
-
     def flush(self):
-        pass
+        success, _, err = _run_cmd("flush", [self.name])
+
+        if not success:
+            raise IpsetError(err)
 
     def rename(self, name):
-        pass
+        success, _, err = _run_cmd("flush", [self.name, name])
+
+        if not success:
+            raise IpsetError(err)
+        self.name = name
 
     def swap(self, other):
-        pass
+        success, _, err = _run_cmd("swap", [self.name, other.name])
 
-    def version():
-        pass
+        if not success:
+            raise IpsetError(err)
+        self.name,other.name = other.name,self.name
 
     def real():
         return True
