@@ -64,8 +64,6 @@ class Ipset:
         if exist:
             args += ["-exist"]
 
-        print(args)
-
         success, _, err = _run_cmd("add", args)
 
         if not success:
@@ -153,7 +151,7 @@ class Entry:
         self.bytes = int(bytes) if bytes is not None else None
         self.skbqueue = int(skbqueue) if skbqueue is not None else None
         if skbmark is None:
-            self.sekbmark = None
+            self.skbmark = None
         elif type(skbmark) is int:
             self.skbmark = (skbmark, 2**32-1)
         elif type(skbmark) is tuple:
@@ -175,18 +173,18 @@ class Entry:
 
     def to_cmd(self):
         res = [self.elem]
-        if self.comment:
+        if self.comment is not None:
             res += ["comment", self.comment]
-        if self.timeout:
+        if self.timeout is not None:
             res += ["timeout", str(self.timeout)]
-        if self.packets:
+        if self.packets is not None:
             res += ["packets", str(self.packets)]
-        if self.bytes:
+        if self.bytes is not None:
             res += ["bytes", str(self.bytes)]
-        if self.skbqueue:
+        if self.skbqueue is not None:
             res += ["skbqueue", str(self.skbqueue)]
-        if self.skbmark:
+        if self.skbmark is not None:
             res += ["skbmark", '0x{:x}/0x{:x}'.format(*self.skbmark)]
-        if self.skbprio:
+        if self.skbprio is not None:
             res += ["skbprio", '{}:{}'.format(*self.skbprio)]
         return res

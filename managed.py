@@ -19,11 +19,12 @@ class Net:
     def generate_iptables(self, match_internal = "-s 172.16.0.0/255.252.0.0", stop = False):
         pass
 
-    def connect_user(self, ip, timeout = None, mark = None, packets = None, bytes = None):
+    def connect_user(self, ip, timeout = None, mark = None, up = None, down = None):
         if mark is None:
             mark = self.mark_current + self.mark_start
             self.mark_current = (self.mark_current+1) % self.mark_mod
-        self.ipset.add(Entry(ip, skbmark = mark, packets=packets, bytes=bytes))
+        self.ipset.add(Entry(ip, skbmark = mark, bytes=up))
+        self.reverse.add(Entry(ip, bytes=down))
 
     def disconnect_user(self, ip):
         self.ipset.delete(ip)
@@ -37,23 +38,25 @@ class Net:
         'sudo ipset list langate | grep 1.1.1.1'
 
         :param mac: Mac adress of the user.
-        :return: User class containing their bandwith usage and mark 
+        :return: User class containing their bandwith usage and mark
         """
         entries = self.ipset.list().entries
         for entry in entries:
             if entry.elem == ip:
-                mark = entry.skbmark[0] if skbmark else None
+                mark = entry.skbmark[0] if entry.skbmark else None
                 up = entry.bytes or 0
+                break
         else:
             return None
 
         rev_entries = self.reverse.list().entries
-        for i in rev_entries:
+        for entry in rev_entries:
             if entry.elem == ip:
                 down = entry.bytes or 0
+                break
         else:
             down = 0
-        
+
         return User(ip, mark, up=up, down=down)
 
     def clear(self):
@@ -65,7 +68,7 @@ class Net:
         self.reverse.flush()
 
 
-    def get_all_connected(self): 
+    def get_all_connected(self):
         """
         Get all entries from the set, with how much bytes they transferred and what is their mark.
         Equivalent to the command : 'sudo ipset list langate"
@@ -75,10 +78,10 @@ class Net:
         users = dict()
         for entry in entries:
             ip = entry.elem
-            mark = entry.skbmark[0] if skbmark else None
+            mark = entry.skbmark[0] if entry.skbmark else None
             up = entry.bytes or 0
             users[ip] = User(ip, mark, up=up)
-        
+
 
         rev_entries = self.reverse.list().entries
         for entry in rev_entries:
@@ -91,7 +94,7 @@ class Net:
         for entry in rev_entries:
             if entry.elem in users:
                 users[entry.elem].down = entry.bytes or 0
-        
+
         return users
 
 
@@ -100,7 +103,7 @@ class Net:
         Delete the set. Equivalent to the command :
         'sudo ipset destroy langate"
         """
-        self.ipset.destoy()
+        self.ipset.destroy()
         self.reverse.destroy()
 
     def log_statistics(self):
@@ -119,17 +122,19 @@ class Net:
         ip to it's bandwith usage since last entry
         """
         res = list()
-        for (new_dict, old_dict) in zip(self.logs[1:], self.logs):
+        for ((new_time, new_dict), (old_time, old_dict)) in zip(self.logs[1:], self.logs):
             partial = dict()
-            for k in new_new:
-                if k in old_new:
+            for k in new_dict:
+                if k in old_dict:
                     new = new_dict[k]
                     old = old_dict[k]
 
                     partial[k] = (new.up-old.up, new.down-old.down, new.mark)
+                else:
+                    partial[k] = (new.up, new.down, new.mark)
 
-            res.append(((new[0] + new[1])/2, partial))
-        
+            res.append(((new_time + old_time)/2, partial))
+
         return res
 
     def get_vpn_logs(self):
@@ -142,7 +147,7 @@ class Net:
         to it's bandwith usage since last entry
         """
         res = list()
-        for time,users in self.get_users.logs():
+        for time,users in self.get_users_logs():
             partial = dict()
             for user in [users[k] for k in users]:
                 if user[2] not in partial:
@@ -153,14 +158,15 @@ class Net:
 
         return res
 
-    def clear_logs(self, after=time()):
+    def clear_logs(self, after=None):
         """
         Clear internal logs (logs are never cleared otherwise, taking memory indefinitely).
 
         :param after: Time after which the cleaning must be done, now if not set.
         """
-        while self.log[0][0] < after:
-            delete(self.log[0])
+        after = after or time()
+        while len(self.logs) and self.logs[0][0] < after:
+            del(self.logs[0])
 
     def get_balance(self):
         """
@@ -173,9 +179,10 @@ class Net:
         entries = self.ipset.list().entries
         balance = dict()
         for entry in entries:
-            if entry.skbmark not in balance:
-                balance[entry.skbmark] = set()
-            balance[entry.skbmark].add(entry.elem)
+            skbmark = entry.skbmark[0] if entry.skbmark else None
+            if skbmark not in balance:
+                balance[skbmark] = set()
+            balance[skbmark].add(entry.elem)
 
         return balance
 
@@ -187,6 +194,8 @@ class Net:
         :param vpn: Vpn where move the user to.
         """
         entries = self.ipset.list().entries
+        if type(vpn) is int:
+            vpn = (vpn, (1<<32)-1)
         for entry in entries:
             if entry.elem == ip:
                 entry.skbmark = vpn
@@ -194,7 +203,6 @@ class Net:
                 break
         else:
             pass #not found
-        
 
 
 def verify_mac(mac: str) -> bool:
