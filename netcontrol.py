@@ -4,7 +4,7 @@ import socket, pickle
 from ipset import Ipset, get_ip, get_mac, NetworkError
 
 """
-This is the main script for langate2000-networkd.
+This is the main script for langate2000-netcontrol.
 This component is an interface between the langate2000 web pages and
 the kernel network components of the gateway used during the events.
 
@@ -102,13 +102,13 @@ def parse_query(p):
     else:
         return response
 
-if os.path.exists(config.networkd_socket_file):
-    os.remove(config.networkd_socket_file)
+if os.path.exists(config.netcontrol_socket_file):
+    os.remove(config.netcontrol_socket_file)
 
 with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as server:
-    server.bind(config.networkd_socket_file)
+    server.bind(config.netcontrol_socket_file)
 
-    print("Listening on {}.".format(config.networkd_socket_file))
+    print("Listening on {}.".format(config.netcontrol_socket_file))
 
     while True:
         server.listen(1)
