@@ -19,11 +19,11 @@ class Net:
     def generate_iptables(self, match_internal = "-s 172.16.0.0/255.252.0.0", stop = False):
         pass
 
-    def connect_user(self, ip, timeout = None, mark = None, up = None, down = None):
+    def connect_user(self, ip, timeout=None, mark=None, up=None, down=None):
         if mark is None:
             mark = self.mark_current + self.mark_start
             self.mark_current = (self.mark_current+1) % self.mark_mod
-        self.ipset.add(Entry(ip, skbmark = mark, bytes=up))
+        self.ipset.add(Entry(ip, skbmark=mark, bytes=up))
         self.reverse.add(Entry(ip, bytes=down))
 
     def disconnect_user(self, ip):
@@ -37,8 +37,8 @@ class Net:
         Obtained by the commands :
         'sudo ipset list langate | grep 1.1.1.1'
 
-        :param mac: Mac adress of the user.
-        :return: User class containing their bandwith usage and mark
+        :param ip: Mac address of the user.
+        :return: User class containing their bandwidth usage and mark
         """
         entries = self.ipset.list().entries
         for entry in entries:
@@ -82,21 +82,12 @@ class Net:
             up = entry.bytes or 0
             users[ip] = User(ip, mark, up=up)
 
-
-        rev_entries = self.reverse.list().entries
-        for entry in rev_entries:
-            if entry.elem == ip:
-                down = entry.bytes or None
-        else:
-            down = 0
-
         rev_entries = self.reverse.list().entries
         for entry in rev_entries:
             if entry.elem in users:
                 users[entry.elem].down = entry.bytes or 0
 
         return users
-
 
     def delete(self):
         """
@@ -125,8 +116,8 @@ class Net:
         for ((new_time, new_dict), (old_time, old_dict)) in zip(self.logs[1:], self.logs):
             partial = dict()
             for k in new_dict:
+                new = new_dict[k]
                 if k in old_dict:
-                    new = new_dict[k]
                     old = old_dict[k]
 
                     partial[k] = (new.up-old.up, new.down-old.down, new.mark)
@@ -190,7 +181,7 @@ class Net:
         """
         Move an user to a new vpn.
 
-        :param mac: ip address of the user.
+        :param ip: ip address of the user.
         :param vpn: Vpn where move the user to.
         """
         entries = self.ipset.list().entries
@@ -202,7 +193,7 @@ class Net:
                 self.ipset.add(entry)
                 break
         else:
-            pass #not found
+            pass # not found
 
 
 def verify_mac(mac: str) -> bool:

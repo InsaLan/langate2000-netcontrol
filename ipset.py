@@ -7,8 +7,10 @@ from xmltodict import parse as parsexml
 # timeout
 # errorcode
 
+
 class IpsetError(RuntimeError):
     """ipset returned an error"""
+
 
 def _run_cmd(command, args=[], stdin=None):
     result = run(["ipset", command, "-output", "xml"] + args, stdout=PIPE, stderr=PIPE, timeout=2)
@@ -19,6 +21,7 @@ def _run_cmd(command, args=[], stdin=None):
         return (success, parsexml(out), err or None)
     else:
         return (success, None, err or None)
+
 
 class Ipset:
     def __init__(self, name):
@@ -37,7 +40,7 @@ class Ipset:
         if exist:
             args += ["-exist"]
         for k,v in [(k, kwargs[k]) for k in kwargs]:
-            if type(v)==bool or v==None:
+            if type(v) == bool or v == None:
                 if v:
                     args += [k]
             else:
@@ -122,16 +125,16 @@ class Ipset:
             raise IpsetError(err)
         self.name,other.name = other.name,self.name
 
-    def real():
+    def real(self):
         return True
 
 
 class Set:
     def __init__(self, name, typ, header, entries):
-        self.name = name #string
-        self.type = typ #string
-        self.header = header #dict
-        self.entries = entries #list of entries
+        self.name = name # string
+        self.type = typ # string
+        self.header = header # dict
+        self.entries = entries # list of entries
 
     def from_dict(data):
         if data["members"] is None:
@@ -141,6 +144,7 @@ class Set:
         else:
             entries = [Entry(**data["members"]["member"])]
         return Set(data["@name"], data["type"], dict(data["header"]), entries)
+
 
 class Entry:
     def __init__(self, elem, timeout=None, packets=None, bytes=None, comment=None, skbmark=None, skbprio=None, skbqueue=None):
