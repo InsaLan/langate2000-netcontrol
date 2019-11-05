@@ -11,8 +11,8 @@ class Net:
     def __init__(self, name="langate", mark=(0, 1)):
         self.ipset = Ipset(name)
         self.reverse = Ipset(name + "-reverse")
-        self.ipset.create("hash:ip")
-        self.reverse.create("hash:ip", skbinfo=False)
+        self.ipset.create("hash:ip", comment=True)
+        self.reverse.create("hash:ip", skbinfo=False, comment=True)
         self.mark_start, self.mark_mod = mark
         self.mark_current = 0
         self.logs = list()
@@ -20,12 +20,12 @@ class Net:
     def generate_iptables(self, match_internal = "-s 172.16.0.0/255.252.0.0", stop = False):
         pass
 
-    def connect_user(self, ip, timeout=None, mark=None, up=None, down=None):
+    def connect_user(self, ip, timeout=None, mark=None, up=None, down=None, name=None):
         if mark is None:
             mark = self.mark_current + self.mark_start
             self.mark_current = (self.mark_current+1) % self.mark_mod
-        self.ipset.add(Entry(ip, skbmark=mark, bytes=up))
-        self.reverse.add(Entry(ip, bytes=down))
+        self.ipset.add(Entry(ip, skbmark=mark, bytes=up, comment=name))
+        self.reverse.add(Entry(ip, bytes=down, comment=name))
 
     def disconnect_user(self, ip):
         self.ipset.delete(ip)
