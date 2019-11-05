@@ -1,8 +1,8 @@
 import config
-import os, struct
+import os, struct, traceback
 import socket, pickle
 from ipset import IpsetError
-from managed import Net, get_ip, get_mac
+from managed import Net, User, get_ip, get_mac
 
 """
 This is the main script for langate2000-netcontrol.
@@ -76,13 +76,13 @@ def parse_query(p):
     try:
 
         if p["query"] == "connect_user":
-            net.connect_user(p["mac"])
+            net.connect_user(p["ip"])
         elif p["query"] == "disconnect_user":
-            net.disconnect_user(p["mac"])
+            net.disconnect_user(p["ip"])
         elif p["query"] == "get_user_info":
-            response["info"] = net.get_user_info(p["mac"])
+            response["info"] = net.get_user_info(p["ip"]).to_dict()
         elif p["query"] == "set_mark":
-            net.set_vpn(p["mac"], p["mark"])
+            net.set_vpn(p["ip"], p["mark"])
         elif p["query"] == "clear":
             net.clear()
         elif p["query"] == "destroy":

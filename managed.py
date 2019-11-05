@@ -3,6 +3,7 @@
 
 from ipset import Ipset,Entry
 from time import time
+import re
 
 class Net:
     #logs: List[Tuple[time, Dict[ip, (up, down, mark)]]]
@@ -257,3 +258,11 @@ class User:
         self.mark = mark
         self.up = up
         self.down = down
+
+    def to_dict(self):
+        return {
+            "ip": self.ip,
+            "mark": self.mark,
+            "up": self.up,
+            "down": self.down
+        }
