@@ -1,7 +1,8 @@
 import config
 import os, struct
 import socket, pickle
-from managed import Ipset, get_ip, get_mac, NetworkError
+from ipset import IpsetError
+from managed import Net, get_ip, get_mac
 
 """
 This is the main script for langate2000-netcontrol.
@@ -40,7 +41,7 @@ Note that this daemon needs to be executed on the same machine as the one that s
 
 """
 
-_ipset = Ipset(mark=config.mark)
+net = Net(mark=config.mark)
 
 # the 3 following helper functions were taken from https://stackoverflow.com/questions/17667903/python-socket-receive-large-amount-of-data
 
@@ -75,17 +76,17 @@ def parse_query(p):
     try:
 
         if p["query"] == "connect_user":
-            _ipset.connect_user(p["mac"])
+            net.connect_user(p["mac"])
         elif p["query"] == "disconnect_user":
-            _ipset.disconnect_user(p["mac"])
+            net.disconnect_user(p["mac"])
         elif p["query"] == "get_user_info":
-            response["info"] = _ipset.get_user_info(p["mac"])
+            response["info"] = net.get_user_info(p["mac"])
         elif p["query"] == "set_mark":
-            _ipset.set_vpn(p["mac"], p["mark"])
+            net.set_vpn(p["mac"], p["mark"])
         elif p["query"] == "clear":
-            _ipset.clear()
+            net.clear()
         elif p["query"] == "destroy":
-            _ipset.delete()
+            net.delete()
         elif p["query"] == "get_ip":
             response["ip"] = get_ip(p["mac"])
         elif p["query"] == "get_mac":
@@ -93,7 +94,7 @@ def parse_query(p):
         else:
             raise NotImplemented
 
-    except NetworkError as e:
+    except IpsetError as e:
         return {
             "success": False,
             "message": str(e)
