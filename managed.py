@@ -6,9 +6,24 @@ from time import time
 import re
 
 class Net:
+    """
+    A class made for network access control and bandwidth accounting based on linux ipsets.
+    This spawn 2 ipsets for up and down bandwidth accounting.
+    Instantiating it require root priviledges.
+    For applicable commands, the command they run are indicated. This is indicative only, and
+    won't include any optional parameters that are actually set.
+    """
     #logs: List[Tuple[time, Dict[ip, (up, down, mark)]]]
 
     def __init__(self, name="langate", mark=(0, 1)):
+        """
+        Create ipsets for access control and bandwidth accounting.
+        Equivalent to:
+        `ipset create langate hash:ip`
+
+        :param name: name of the ipset. Second one will be <name>-reverse
+        :param mark: tuple containing min mark and how many vpns to use
+        """
         self.ipset = Ipset(name)
         self.reverse = Ipset(name + "-reverse")
         self.ipset.create("hash:ip", comment=True)
@@ -20,7 +35,19 @@ class Net:
     def generate_iptables(self, match_internal = "-s 172.16.0.0/255.252.0.0", stop = False):
         pass
 
-    def connect_user(self, ip, timeout=None, mark=None, up=None, down=None, name=None):
+    def connect_user(self, ip, name=None, timeout=None, mark=None, up=None, down=None):
+        """
+        Add an entry to the ipsets.
+        Equivalent to:
+        `ipset add langate <ip>`
+
+        :param ip: ip address of the user.
+        :param name: name of they entry, stored as comment in the ipset.
+        :param timeout: timeout of the entry. None for an entry that does not disapear.
+        :param mark: mark for the entry. None to let the module balance users itself.
+        :param up: set upload byte counter to this value, usefull when moving someone of vpns without losing track of their data.
+        :param down: set download byte counter to this value, usefull when moving someone of vpns without losing track of their data.
+        """
         if mark is None:
             mark = self.mark_current + self.mark_start
             self.mark_current = (self.mark_current+1) % self.mark_mod
@@ -28,17 +55,25 @@ class Net:
         self.reverse.add(Entry(ip, bytes=down, comment=name))
 
     def disconnect_user(self, ip):
+        """
+        Remove an entry from the ipsets.
+        Equivalent to:
+        `ipset del langate <entry ip>`
+
+        :param ip: ip of the user.
+        """
         self.ipset.delete(ip)
         self.reverse.delete(ip)
         pass
 
     def get_user_info(self, ip):
         """
-        Get users information from his mac address.
-        Obtained by the commands :
-        'sudo ipset list langate | grep 1.1.1.1'
+        Get users information from his ip address.
+        Equivalent to:
+        `sudo ipset list langate`
+        plus some processing
 
-        :param ip: Mac address of the user.
+        :param ip: ip address of the user.
         :return: User class containing their bandwidth usage and mark
         """
         entries = self.ipset.list().entries
@@ -62,8 +97,9 @@ class Net:
 
     def clear(self):
         """
-        Clear the set, by removing all entry from it. Equivalent to the command :
-        'sudo ipset flush langate'
+        Remove all entry from the set.
+        Equivalent to:
+        `ipset flush langate`
         """
         self.ipset.flush()
         self.reverse.flush()
@@ -71,9 +107,11 @@ class Net:
 
     def get_all_connected(self):
         """
-        Get all entries from the set, with how much bytes they transferred and what is their mark.
-        Equivalent to the command : 'sudo ipset list langate"
-        :return: Dictionary mapping device ip to a User class containing their bandwidth usage (down and up) and mark
+        Get all entries from the set.
+        Equivalent to:
+        `ipset list langate`
+
+        :return: Dictionary mapping ip to a User class
         """
         entries = self.ipset.list().entries
         users = dict()
@@ -92,26 +130,27 @@ class Net:
 
     def delete(self):
         """
-        Delete the set. Equivalent to the command :
-        'sudo ipset destroy langate"
+        Delete the set. After calling this function, the sets can't be used anymore as it no longer exist.
+        Equivalent to:
+        `sudo ipset destroy langate`
         """
         self.ipset.destroy()
         self.reverse.destroy()
 
     def log_statistics(self):
         """
-        Add an entry to internal log. Equivalent to the command :
-        'sudo ipset list langate'
+        Add an entry to internal log.
+        Equivalent to:
+        `ipset list langate`
         """
         self.logs.append((time(),self.get_all_connected()))
 
     def get_users_logs(self):
         """
         Get logs by users, sorted by date.
-         -> List[Tuple[time, Dict[str, Tuple[up, down, mark]]]]
+         -> List[Tuple[time, Dict[str, User]]]
 
-        :return: List sorted by date of tuple of date and dictionary, itself mapping device's
-        ip to it's bandwith usage since last entry
+        :return: List sorted by date of tuple of date and dictionary, itself mapping device ip to User
         """
         res = list()
         for ((new_time, new_dict), (old_time, old_dict)) in zip(self.logs[1:], self.logs):
@@ -132,11 +171,9 @@ class Net:
     def get_vpn_logs(self):
         """
         Get logs by vpn sorted by date.
-
          -> List[Tuple[time, Dict[int, Tuple[int, int]]]]
 
-        :return: List sorted by date of tuple of date and dictionary, itself mapping vpn mark
-        to it's bandwith usage since last entry
+        :return: List sorted by date of tuple of date and dictionary, vpn it's bandwith usage since last entry
         """
         res = list()
         for time,users in self.get_users_logs():
@@ -150,19 +187,24 @@ class Net:
 
         return res
 
-    def clear_logs(self, after=None):
+    def clear_logs(self, after=0):
         """
         Clear internal logs (logs are never cleared otherwise, taking memory indefinitely).
 
-        :param after: Time after which the cleaning must be done, now if not set.
+        :param after: Time after which the cleaning must be done. Positive values are considered absolute timestamps,
+            negative and null are how many seconds to keep
+            (examples: 0 delete all, -60 keep one minute, 1546300800 keep data from after 2019-01-01 00:00)
         """
-        after = after or time()
+        if after <= 0:
+            after = time() + after
         while len(self.logs) and self.logs[0][0] < after:
             del(self.logs[0])
 
     def get_balance(self):
         """
-        Get current mapping of vpn and mac (each entry contain the vpn number, with who is connected to it)
+        Get mapping from vpn to user ip.
+        Equivalent to:
+        `ipset list langate`
 
         -> Dict[int, Set[ip]]
 
@@ -181,6 +223,10 @@ class Net:
     def set_vpn(self, ip, vpn):
         """
         Move an user to a new vpn.
+        Does not modify an entry not already in.
+        Equivalent to:
+        `ipset list langate` plus
+        `ipset add langate <ip>`
 
         :param ip: ip address of the user.
         :param vpn: Vpn where move the user to.
@@ -253,6 +299,11 @@ def get_mac(ip: str) -> str:
 
 
 class User:
+    """
+    A dataclass to help represent a single user.
+    Depending on situations, up and down may represent total bandwidth usage,
+    or usage since previous entry
+    """
     def __init__(self, ip, mark, up=0, down=0):
         self.ip = ip
         self.mark = mark
