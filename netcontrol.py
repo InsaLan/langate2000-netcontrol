@@ -76,7 +76,7 @@ def parse_query(p):
     try:
 
         if p["query"] == "connect_user":
-            net.connect_user(p["ip"])
+            net.connect_user(p["ip"], p["name"])
         elif p["query"] == "disconnect_user":
             net.disconnect_user(p["ip"])
         elif p["query"] == "get_user_info":
