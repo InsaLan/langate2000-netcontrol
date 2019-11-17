@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-from ipset import Ipset,Entry
+try:
+    from ipset import Ipset,Entry
+except ModuleNotFoundError:
+    from .ipset import Ipset,Entry
 from time import time
 import re
 
@@ -81,6 +84,7 @@ class Net:
             if entry.elem == ip:
                 mark = entry.skbmark[0] if entry.skbmark else None
                 up = entry.bytes or 0
+                name = entry.comment
                 break
         else:
             return None
@@ -93,7 +97,7 @@ class Net:
         else:
             down = 0
 
-        return User(ip, mark, up=up, down=down)
+        return User(ip, mark, up=up, down=down, name=name)
 
     def clear(self):
         """
@@ -119,7 +123,8 @@ class Net:
             ip = entry.elem
             mark = entry.skbmark[0] if entry.skbmark else None
             up = entry.bytes or 0
-            users[ip] = User(ip, mark, up=up)
+            name = entry.comment
+            users[ip] = User(ip, mark, up=up, name=name)
 
         rev_entries = self.reverse.list().entries
         for entry in rev_entries:
@@ -304,16 +309,18 @@ class User:
     Depending on situations, up and down may represent total bandwidth usage,
     or usage since previous entry
     """
-    def __init__(self, ip, mark, up=0, down=0):
+    def __init__(self, ip, mark, up=0, down=0, name=None):
         self.ip = ip
         self.mark = mark
         self.up = up
         self.down = down
+        self.name = name
 
     def to_dict(self):
         return {
             "ip": self.ip,
             "mark": self.mark,
             "up": self.up,
-            "down": self.down
+            "down": self.down,
+            "name": self.name,
         }
