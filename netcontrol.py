@@ -76,13 +76,13 @@ def parse_query(p):
     try:
 
         if p["query"] == "connect_user":
-            net.connect_user(p["ip"], p["name"])
+            net.connect_user(p["mac"], p["name"])
         elif p["query"] == "disconnect_user":
-            net.disconnect_user(p["ip"])
+            net.disconnect_user(p["mac"])
         elif p["query"] == "get_user_info":
-            response["info"] = net.get_user_info(p["ip"]).to_dict()
+            response["info"] = net.get_user_info(p["mac"]).to_dict()
         elif p["query"] == "set_mark":
-            net.set_vpn(p["ip"], p["mark"])
+            net.set_vpn(p["mac"], p["mark"])
         elif p["query"] == "clear":
             net.clear()
         elif p["query"] == "destroy":
