@@ -74,7 +74,7 @@ class Net:
         """
         entries = self.ipset.list().entries
         for entry in entries:
-            if entry.elem == mac:
+            if entry.elem == mac.upper():
                 mark = entry.skbmark[0] if entry.skbmark else None
                 name = entry.comment
                 break
