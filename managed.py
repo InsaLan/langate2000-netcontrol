@@ -153,7 +153,7 @@ class Net:
         if type(vpn) is int:
             vpn = (vpn, (1<<32)-1)
         for entry in entries:
-            if entry.elem == mac:
+            if entry.elem == mac.upper():
                 entry.skbmark = vpn
                 self.ipset.add(entry)
                 break
