@@ -49,6 +49,7 @@ class Net:
         if mark is None:
             mark = self.mark_current + self.mark_start
             self.mark_current = (self.mark_current+1) % self.mark_mod
+        
         self.ipset.add(Entry(mac, skbmark=mark, comment=name))
 
     def disconnect_user(self, mac):

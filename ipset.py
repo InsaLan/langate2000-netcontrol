@@ -219,7 +219,7 @@ class Entry:
     """
     def __init__(self, elem, timeout=None, packets=None, bytes=None, comment=None, skbmark=None, skbprio=None, skbqueue=None):
         self.elem = elem
-        self.comment = comment
+        self.comment = comment.replace('"', '')
         self.timeout = int(timeout) if timeout is not None else None
         self.packets = int(packets) if packets is not None else None
         self.bytes = int(bytes) if bytes is not None else None
