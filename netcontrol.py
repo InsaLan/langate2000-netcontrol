@@ -93,7 +93,7 @@ def parse_query(p):
         elif p["query"] == "get_mac":
             response["mac"] = get_mac(p["ip"])
         else:
-            raise NotImplemented
+            raise NotImplementedError
 
     except IpsetError as e:
         return {
