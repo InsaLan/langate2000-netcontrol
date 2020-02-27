@@ -1,6 +1,7 @@
 import config
 import os, struct, traceback
 import socket, pickle
+import traceback
 from ipset import IpsetError
 from managed import Net, User, get_ip, get_mac
 
@@ -76,7 +77,7 @@ def parse_query(p):
     try:
 
         if p["query"] == "connect_user":
-            net.connect_user(p["mac"], p["name"])
+            net.connect_user(p["mac"], p["name"].replace('"',''))
         elif p["query"] == "disconnect_user":
             net.disconnect_user(p["mac"])
         elif p["query"] == "get_user_info":
@@ -112,14 +113,16 @@ with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as server:
     print("Listening on {}.".format(config.netcontrol_socket_file))
 
     while True:
-        server.listen(1)
-        client, address = server.accept()
+        try:
+            server.listen(1)
+            client, address = server.accept()
 
-        # TODO: authenticate packet
-        q = pickle.loads(_recv(client))
-        
-        r = parse_query(q)
-        
-        _send(client, pickle.dumps(r))
-        
-        client.close()
+            # TODO: authenticate packet
+            q = pickle.loads(_recv(client))
+
+            r = parse_query(q)
+
+            _send(client, pickle.dumps(r))
+            client.close()
+        except Exception:
+            traceback.print_exc()
