@@ -33,7 +33,7 @@ class Net:
         self.logs = list()
 
     def generate_iptables(self, match_internal = "-s 172.16.0.0/255.252.0.0", stop = False):
-        pass
+        pass # TODO either fix this function, or drop it if it's not used
 
     def connect_user(self, mac, name=None, timeout=None, mark=None):
         """
