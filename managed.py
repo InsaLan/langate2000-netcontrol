@@ -196,7 +196,7 @@ def get_ip(mac: str) -> str:
     for line in lines:
         if line.startswith(mac, 41):  # 41=offset in line
             return line.split(' ')[0]
-    raise UnknownAddress("'{}' does not have a known ip".format(mac))
+    raise ValueError("'{}' does not have a known ip".format(mac))
 
 
 # get mac from ip
@@ -214,7 +214,7 @@ def get_mac(ip: str) -> str:
     for line in lines:
         if line.startswith(ip, 0):  # 41=offset in line
             return line[41:].split(' ')[0]
-    raise UnknownAddress("'{}' does not have a known mac".format(ip))
+    raise ValueError("'{}' does not have a known mac".format(ip))
 
 
 class User:
