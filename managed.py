@@ -194,7 +194,7 @@ def get_ip(mac: str) -> str:
     f = open('/proc/net/arp', 'r')
     lines = f.readlines()[1:]
     for line in lines:
-        if line.startswith(mac, 41):  # 41=offset in line
+        if line.startswith(mac, 41):  # 41=offset of mac in line
             return line.split(' ')[0]
     raise ValueError("'{}' does not have a known ip".format(mac))
 
@@ -212,8 +212,8 @@ def get_mac(ip: str) -> str:
     f = open('/proc/net/arp', 'r')
     lines = f.readlines()[1:]
     for line in lines:
-        if line.startswith(ip, 0):  # 41=offset in line
-            return line[41:].split(' ')[0]
+        if line.startswith(ip + " "):
+            return line[41:].split(' ')[0] # 41=offset of mac in line
     raise ValueError("'{}' does not have a known mac".format(ip))
 
 
