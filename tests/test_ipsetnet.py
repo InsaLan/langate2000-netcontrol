@@ -1,16 +1,17 @@
-import pytest, unittest, json
+import pytest, json
 from contextlib import contextmanager
 from time import sleep
 from os import getuid
 from random import randint
-from pytest import skip
 from ipsetnet import IPSetNet
 from socket import AF_UNSPEC
+from unittest import TestCase
+from exceptions import NetException
 
 @contextmanager
 def setup():
     if getuid() != 0:
-        skip('need to be root')
+        pytest.skip('need to be root')
 
     rand = randint(0, 1000)
     name = f'langate-tests-{rand}'
@@ -20,31 +21,39 @@ def setup():
 
     net.ipset.destroy(name)
 
+class IPSetNetTests(TestCase):
 
-def test_connect_user():
-    with setup() as net:
-        mac = 'FF:FF:FF:FF:FF:FF'
-        net.connect_user(mac, name='foo')
-        assert net.ipset.test(net.name, mac, family=AF_UNSPEC, etype='mac')
+    def test_connect_device(self):
+        with setup() as net:
+            mac = 'FF:FF:FF:FF:FF:FF'
+            net.connect_device(mac, name='foo')
+            self.assertTrue(net.ipset.test(net.name, mac, family=AF_UNSPEC, etype='mac'))
+    
+    def test_disconnect_device(self):
+        with setup() as net:
+            mac = 'FF:FF:FF:FF:FF:FF'
+            net.connect_device(mac, name='foo')
+            self.assertTrue(net.ipset.test(net.name, mac, family=AF_UNSPEC, etype='mac'))
+            
+            net.disconnect_device(mac)
+            self.assertFalse(net.ipset.test(net.name, mac, family=AF_UNSPEC, etype='mac'))
+    
+    def test_device_info(self):
+        with setup() as net:
+            mac = 'BE:EF:BE:EF:BE:EF'
+            net.connect_device(mac, name='beef')
+    
+            mac = 'CA:FE:CA:FE:CA:FE'
+            net.connect_device(mac, name='cafe')
+    
+            info = net.get_device_info(mac)
+            self.assertEqual(info['mac'], mac.lower())
+            self.assertEqual(info['mark'], 2)
+            self.assertEqual(info['name'], 'cafe')
+    
+    def test_device_info_nonexistent(self):
+        with setup() as net:
+            mac = 'FF:FF:FF:FF:FF:FF'
 
-def test_disconnect_user():
-    with setup() as net:
-        mac = 'FF:FF:FF:FF:FF:FF'
-        net.connect_user(mac, name='foo')
-        assert net.ipset.test(net.name, mac, family=AF_UNSPEC, etype='mac')
-        net.disconnect_user(mac)
-        assert not net.ipset.test(net.name, mac, family=AF_UNSPEC, etype='mac')
-
-def test_user_info():
-    with setup() as net:
-        mac = 'BE:EF:BE:EF:BE:EF'
-        net.connect_user(mac, name='beef')
-
-        mac = 'CA:FE:CA:FE:CA:FE'
-        net.connect_user(mac, name='cafe')
-
-        info = net.get_user_info(mac)
-        assert info['mac'] == mac.lower()
-        assert info['mark'] == 2
-        assert info['name'] == 'cafe'
-
+            with self.assertRaises(NetException):
+                net.get_device_info(mac)

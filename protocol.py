@@ -2,16 +2,16 @@ import re
 from marshmallow import fields, validate, Schema, post_load
 from marshmallow_oneofschema import OneOfSchema
 
-MacAddressField = fields.Str(validate=validate.Regexp(r'^([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}$'))
+MacAddressField = fields.Str(required=True, validate=validate.Regexp(r'^([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}$'))
 
 class ConnectUserMsg(Schema):
-    name = fields.Str()
+    name = fields.Str(required=True)
     mac = MacAddressField
 
     @post_load
     def process(self, data, **kwargs):
         net = self.context['net']
-        net.connect_user(data['mac'], name=data['name'])
+        net.connect_device(data['mac'], name=data['name'])
 
 class DisconnectUserMsg(Schema):
     mac = MacAddressField
@@ -19,7 +19,7 @@ class DisconnectUserMsg(Schema):
     @post_load
     def process(self, data, **kwargs):
         net = self.context['net']
-        net.disconnect_user(data['mac'])
+        net.disconnect_device(data['mac'])
 
 class GetUserInfoMsg(Schema):
     mac = MacAddressField
@@ -27,27 +27,49 @@ class GetUserInfoMsg(Schema):
     @post_load
     def process(self, data, **kwargs):
         net = self.context['net']
-        return net.get_user_info(data['mac'])
+        return { 'info': net.get_device_info(data['mac']) }
 
 class SetMarkMsg(Schema):
     mac = MacAddressField
-    mark = fields.Int()
+    mark = fields.Int(required=True)
 
     @post_load
     def process(self, data, **kwargs):
         net = self.context['net']
         net.set_mark(data['mac'], data['mark'])
 
+#class ClearMsg(Schema):
+#
+#    @post_load
+#    def process(self, data, **kwargs):
+#        net = self.context['net']
+#        net.clear()
+
+class GetIpMsg(Schema):
+    mac = MacAddressField
+ 
+    @post_load
+    def process(self, data, **kwargs):
+        net = self.context['net']
+        return { 'ip': net.get_ip(data['mac']) }
+
+class GetMacMsg(Schema):
+    ip = fields.IPv4(required=True)
+
+    @post_load
+    def process(self, data, **kwargs):
+        net = self.context['net']
+        return { 'mac': net.get_mac(str(data['ip'])) }
+
 
 class QueryMsg(OneOfSchema):
     type_field = "query"
     type_schemas = {
-        "connect_user": ConnectUserMsg, 
-        "disconnect_user": DisconnectUserMsg,
-        "get_user_info": GetUserInfoMsg,
+        "connect_device": ConnectUserMsg, 
+        "disconnect_device": DisconnectUserMsg,
+        "get_device_info": GetUserInfoMsg,
         "set_mark": SetMarkMsg,
-        #"clear": _NoParamsMsg,
-        #"destroy": _NoParamsMsg,
-        #"get_ip": _MacMsg,
-        #"get_mac": _IpMsg 
+        #"clear": ClearMsg,
+        "get_ip": GetIpMsg,
+        "get_mac": GetMacMsg 
     }

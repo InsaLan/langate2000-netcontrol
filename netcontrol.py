@@ -7,6 +7,8 @@ from protocol import QueryMsg
 from ipsetnet import IPSetNet
 from exceptions import ProtocolException
 
+MAX_MSG_SIZE = 256
+
 def send_msg(sock, data):
     message_size = len(data)
     raw_message = pack(f'>I{message_size}s', message_size, data.encode('utf-8'))
@@ -25,6 +27,9 @@ def recv_msg(sock):
 
     message_size_raw = _recv_bytes(4)
     message_size = unpack('>I', message_size_raw)[0]
+
+    if message_size > MAX_MSG_SIZE:
+        raise ProtocolException(f'message size exceeds the maximum allowed ({MAX_MSG_SIZE})')
 
     data = _recv_bytes(message_size)
     return data.decode()
@@ -45,11 +50,19 @@ class NetcontrolProtocolHandler(StreamRequestHandler):
             json_payload = recv_msg(self.request)
             message = QueryMsg()
             message.context['net'] = self.net
-            message.loads(json_payload)
+            data = message.loads(json_payload)
+            
+            if isinstance(data, dict):
+                response = { **response, **data }
+
             send_msg(self.request, json.dumps(response))
             
         except ValidationError as e:
             raw = json.dumps({'success': False, 'message': e.normalized_messages()})
+            send_msg(self.request, raw)
+
+        except json.JSONDecodeError as e:
+            raw = json.dumps({'success': False, 'message': 'wrong message format'})
             send_msg(self.request, raw)
 
         except Exception as e:

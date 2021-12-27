@@ -37,16 +37,16 @@ class IPSetNet(Net):
         self.mark_no = mark_no
         self.mark_curr = 0
 
-    def connect_user(self, mac, name=None, timeout=None, mark=None):
+    def connect_device(self, mac: str, name=None, timeout=None, mark=None):
         """
         Add an entry to the ipsets.
         Equivalent to:
         `ipset add langate <mac>`
 
-        :param mac: mac address of the user.
+        :param mac: mac address of the device.
         :param name: name of the entry, stored as comment in the ipset.
         :param timeout: timeout of the entry. None for an entry that does not disapear.
-        :param mark: mark for the entry. None to let the module balance users itself.
+        :param mark: mark for the entry. None to let the module balance devices itself.
         """
         
         if mark is None:
@@ -62,24 +62,24 @@ class IPSetNet(Net):
         
         self.ipset.add(self.name, mac, etype='mac', skbmark=skbmark, comment=name, timeout=timeout)
 
-    def disconnect_user(self, mac):
+    def disconnect_device(self, mac: str):
         """
         Remove an entry from the ipsets.
         Equivalent to:
         `ipset del langate <entry mac>`
 
-        :param mac: mac of the user.
+        :param mac: mac of the device.
         """
         self.ipset.delete(self.name, mac, etype='mac')
 
-    def get_user_info(self, mac):
+    def get_device_info(self, mac: str):
         """
-        Get users information from his mac address.
+        Get devices information from his mac address.
         Equivalent to:
         `sudo ipset list langate`
         plus some processing
 
-        :param mac: mac address of the user.
+        :param mac: mac address of the device.
         :return: xxx 
         """
         entries = self.ipset.list(name=self.name)[0].get_attr('IPSET_ATTR_ADT').get_attrs('IPSET_ATTR_DATA')
@@ -89,7 +89,7 @@ class IPSetNet(Net):
             item_mac = item.get_attr('IPSET_ATTR_ETHER')
 
             if mac.lower() == item_mac.lower():
-                item_mark = item.get_attr('IPSET_ATTR_SKBMARK')[0] # only retrieve the mark, disregard mask, see comment in connect_user
+                item_mark = item.get_attr('IPSET_ATTR_SKBMARK')[0] # only retrieve the mark, disregard mask, see comment in connect_device
                 item_name = item.get_attr('IPSET_ATTR_COMMENT')
 
                 return {
@@ -98,8 +98,20 @@ class IPSetNet(Net):
                         'name': item_name
                 }
 
-        raise NetNotFound(f'mac {item_mac} not found in set')
+        raise NetNotFound(f'mac {mac} not found in set')
 
+    def set_mark(self, mac: str, mark: int):
+        """
+        Move an device to a new vpn.
+        Does not modify an entry not already in.
+        Equivalent to:
+        `ipset list langate` plus
+        `ipset add langate <mac>`
+
+        :param mac: mac address of the device.
+        :param vpn: Vpn where move the device to.
+        """
+        pass 
 
     def clear(self):
         """
@@ -109,45 +121,34 @@ class IPSetNet(Net):
         """
         self.ipset.flush(self.name)
 
-    def get_all_connected(self):
+    def get_ip(self, mac: str) -> str:
         """
-        Get all entries from the set.
-        Equivalent to:
-        `ipset list langate`
-
-        :return: Dictionary mapping mac to a User class
+        Get the ip address associated with a given mac address.
+    
+        :param mac: Mac address of the device.
+        :return: Ip address of the device.
         """
-        pass
-
-    def delete(self):
+        
+        f = open('/proc/net/arp', 'r')
+        lines = f.readlines()[1:]
+        for line in lines:
+            if line.startswith(mac, 41):  # 41=offset of mac in line
+                return line.split(' ')[0]
+        
+        raise NetException(f'{mac} does not have a known ip')
+    
+    def get_mac(self, ip: str) -> str:
         """
-        Delete the set. After calling this function, the sets can't be used anymore as it no longer exist.
-        Equivalent to:
-        `sudo ipset destroy langate`
+        Get the mac address associated with a given ip address.
+    
+        :param ip: Ip address of the device.
+        :return: Mac address of the device.
         """
-        self.ipset.destroy(self.name)
-
-    def get_balance(self):
-        """
-        Get mapping from vpn to user mac.
-        Equivalent to:
-        `ipset list langate`
-
-        -> Dict[int, Set[mac]]
-
-        :return: Dictionary composed of vpn and set of mac addresses
-        """
-        pass
-
-    def set_vpn(self, mac, vpn):
-        """
-        Move an user to a new vpn.
-        Does not modify an entry not already in.
-        Equivalent to:
-        `ipset list langate` plus
-        `ipset add langate <mac>`
-
-        :param mac: mac address of the user.
-        :param vpn: Vpn where move the user to.
-        """
-        pass 
+        
+        f = open('/proc/net/arp', 'r')
+        lines = f.readlines()[1:]
+        for line in lines:
+            if line.startswith(ip + " "):
+                return line[41:].split(' ')[0] # 41=offset of mac in line
+        
+        raise NetException(f'{ip} does not have a known mac')
