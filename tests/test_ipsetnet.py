@@ -3,7 +3,7 @@ from contextlib import contextmanager
 from time import sleep
 from os import getuid
 from random import randint
-from ipsetnet import IPSetNet
+from net.ipset import IPSetNet
 from socket import AF_UNSPEC
 from unittest import TestCase
 from exceptions import NetException

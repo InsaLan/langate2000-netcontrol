@@ -4,7 +4,7 @@ from socketserver import StreamRequestHandler, UnixStreamServer
 from marshmallow import ValidationError
 
 from protocol import QueryMsg
-from ipsetnet import IPSetNet
+from net.ipset import IPSetNet
 from exceptions import ProtocolException
 
 MAX_MSG_SIZE = 256
