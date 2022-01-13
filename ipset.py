@@ -4,6 +4,8 @@
 from subprocess import run, PIPE, TimeoutExpired
 from xmltodict import parse as parsexml
 
+from log import logger
+
 # timeout
 # errorcode
 
@@ -20,6 +22,7 @@ def _run_cmd(command, args=[]):
     :param args: list of additional arguments
     :return: tuple (bool, dict, str), representing command success, parsed output, and raw error output
     """
+    logger.debug("Running ipset %s -output xml %s", " ".join(command), " ".join(args))
     result = run(["ipset", command, "-output", "xml"] + args, stdout=PIPE, stderr=PIPE, timeout=2)
     success = result.returncode == 0
     out = result.stdout.decode("UTF-8")
@@ -38,6 +41,7 @@ class Ipset:
         :param name: name of the set.
         """
         self.name = name
+        logger.info("Initialized ipset with name %s", name)
 
     def create(self, typ, timeout=None, counters=True, skbinfo=True, comment=False, exist=True, **kwargs):
         """
@@ -65,6 +69,7 @@ class Ipset:
 
         if not success:
             raise IpsetError(err)
+        logger.debug("ipset successfully initialized")
 
     def destroy(self):
         """
@@ -74,6 +79,7 @@ class Ipset:
 
         if not success:
             raise IpsetError(err)
+        logger.info("ipset successfully destroyed")
 
     def add(self, entry, exist=True, nomatch=False):
         """
@@ -96,6 +102,7 @@ class Ipset:
 
         if not success:
             raise IpsetError(err)
+        logger.debug("added entry %s", " ".join(entry.to_cmd()))
 
     def delete(self, entry, exist=True):
         """
@@ -266,4 +273,5 @@ class Entry:
             res += ["skbmark", '0x{:x}/0x{:x}'.format(*self.skbmark)]
         if self.skbprio is not None:
             res += ["skbprio", '{}:{}'.format(*self.skbprio)]
+        logger.debug("Generated command '%s' from ipset entry", res)
         return res

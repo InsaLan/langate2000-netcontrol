@@ -8,6 +8,8 @@ except ModuleNotFoundError:
 from time import time
 import re
 
+from log import logger
+
 class Net:
     """
     A class made for network access control and bandwidth accounting based on linux ipsets.
@@ -31,6 +33,7 @@ class Net:
         self.mark_start, self.mark_mod = mark
         self.mark_current = 0
         self.logs = list()
+        logger.debug("Net instance initialized")
 
     def generate_iptables(self, match_internal = "-s 172.16.0.0/255.252.0.0", stop = False):
         pass # TODO either fix this function, or drop it if it's not used
@@ -49,7 +52,7 @@ class Net:
         if mark is None:
             mark = self.mark_current + self.mark_start
             self.mark_current = (self.mark_current+1) % self.mark_mod
-        
+        logger.info("Connecting MAC %s (\"%s\" on mark %s)", mac, name, mark))
         self.ipset.add(Entry(mac, skbmark=mark, comment=name))
 
     def disconnect_user(self, mac):
@@ -60,8 +63,8 @@ class Net:
 
         :param mac: mac of the user.
         """
+        logger.info("Disconnecting MAC %s", mac)
         self.ipset.delete(mac)
-        pass
 
     def get_user_info(self, mac):
         """
@@ -73,6 +76,7 @@ class Net:
         :param mac: mac address of the user.
         :return: User class containing their bandwidth usage and mark
         """
+        logger.info("Querying info about MAC %s", mac)
         entries = self.ipset.list().entries
         for entry in entries:
             if entry.elem == mac.upper():
@@ -80,8 +84,10 @@ class Net:
                 name = entry.comment
                 break
         else:
+            logger.warn("Did not find info about MAC %s", mac)
             return None
 
+        logger.info("MAC %s belongs to user %s mark %s", mac, name, mark)
         return User(mac, mark, name=name)
 
     def clear(self):
@@ -90,6 +96,7 @@ class Net:
         Equivalent to:
         `ipset flush langate`
         """
+        logger.info("Flushing the entire ipset")
         self.ipset.flush()
 
 
@@ -109,6 +116,7 @@ class Net:
             name = entry.comment
             users[mac] = User(mac, mark, name=name)
 
+        logger.info("Devices currently connected: %s", len(users))
         return users
 
     def delete(self):
@@ -117,6 +125,7 @@ class Net:
         Equivalent to:
         `sudo ipset destroy langate`
         """
+        logger.debug("Destroying the ipset")
         self.ipset.destroy()
 
     def get_balance(self):
@@ -137,6 +146,7 @@ class Net:
                 balance[skbmark] = set()
             balance[skbmark].add(entry.elem)
 
+        logger.debug("Tunnel balance: %s", ",".join(["{}:{}".format(mark, balance[mark]) for mark in balance]))
         return balance
 
     def set_vpn(self, mac, vpn):
@@ -150,6 +160,7 @@ class Net:
         :param mac: mac address of the user.
         :param vpn: Vpn where move the user to.
         """
+        logger.info("Moving MAC %s over to VPN %s", mac, vpn)
         entries = self.ipset.list().entries
         if type(vpn) is int:
             vpn = (vpn, (1<<32)-1)
@@ -159,6 +170,7 @@ class Net:
                 self.ipset.add(entry)
                 break
         else:
+            logger.warn("MAC %s not found", mac)
             pass # not found
 
 
@@ -189,13 +201,16 @@ def get_ip(mac: str) -> str:
     :param mac: Mac address of the user.
     :return: Ip address of the user.
     """
+    logger.info("Querying IP for MAC %s", mac)
     if not verify_mac(mac):
         raise InvalidAddressError("'{}' is not a valid mac address".format(mac))
     f = open('/proc/net/arp', 'r')
     lines = f.readlines()[1:]
     for line in lines:
         if line.startswith(mac, 41):  # 41=offset of mac in line
-            return line.split(' ')[0]
+            ip = line.split(' ')[0]
+            logger.info("Found IP %s for MAC %s", ip, mac)
+            return ip
     raise ValueError("'{}' does not have a known ip".format(mac))
 
 
@@ -207,13 +222,16 @@ def get_mac(ip: str) -> str:
     :param ip: Ip address of the user.
     :return: Mac address of the user.
     """
+    logger.info("Querying MAC for IP %s", ip)
     if not verify_ip(ip):
         raise InvalidAddressError("'{}' is not a valid ip address".format(ip))
     f = open('/proc/net/arp', 'r')
     lines = f.readlines()[1:]
     for line in lines:
         if line.startswith(ip + " "):
-            return line[41:].split(' ')[0] # 41=offset of mac in line
+            mac = line[41:].split(' ')[0] # 41=offset of mac in line
+            logger.info("Found MAC %s for IP %s", mac)
+            return mac
     raise ValueError("'{}' does not have a known mac".format(ip))
 
 

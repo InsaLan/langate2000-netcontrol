@@ -4,6 +4,7 @@ import socket, pickle
 import traceback
 from ipset import IpsetError
 from managed import Net, User, get_ip, get_mac
+from log import logger, init_logger
 
 """
 This is the main script for langate2000-netcontrol.
@@ -108,14 +109,18 @@ if os.path.exists(config.netcontrol_socket_file):
     os.remove(config.netcontrol_socket_file)
 
 with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as server:
+    logger.setLevel(10) # INFO
+    init_logger()
+    logger.info("Binding socket at \"{}\"".format(config.netcontrol_socket_file))
     server.bind(config.netcontrol_socket_file)
 
-    print("Listening on {}.".format(config.netcontrol_socket_file))
+    logger.info("Listening on \"{}\".".format(config.netcontrol_socket_file))
 
     while True:
         try:
             server.listen(1)
-            client, address = server.accept()
+            client, _ = server.accept()
+            logger.debug("Incoming connection")
 
             # TODO: authenticate packet
             q = pickle.loads(_recv(client))
@@ -123,6 +128,7 @@ with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as server:
             r = parse_query(q)
 
             _send(client, pickle.dumps(r))
+            logger.debug("Order finished")
             client.close()
         except Exception:
             traceback.print_exc()
