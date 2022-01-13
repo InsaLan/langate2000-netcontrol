@@ -7,6 +7,8 @@ from protocol import QueryMsg
 from net.ipset import IPSetNet
 from exceptions import ProtocolException
 
+from log import logger, init_logger
+
 MAX_MSG_SIZE = 256
 
 def send_msg(sock, data):
@@ -58,19 +60,26 @@ class NetcontrolProtocolHandler(StreamRequestHandler):
             send_msg(self.request, json.dumps(response))
             
         except ValidationError as e:
+            logger.error("Failed to validate : %s", e.normalized_messages())
             raw = json.dumps({'success': False, 'message': e.normalized_messages()})
             send_msg(self.request, raw)
 
         except json.JSONDecodeError as e:
+            logger.error("Failed to parse JSON (wrong message format)")
             raw = json.dumps({'success': False, 'message': 'wrong message format'})
             send_msg(self.request, raw)
 
         except Exception as e:
+            logger.error("Failed to handle for unknown error : %s", str(e))
             raw = json.dumps({'success': False, 'message': str(e)})
             send_msg(self.request, raw)
 
 
 if __name__ == "__main__":
+    logger.setLevel(10) # INFO
+    init_logger()
+    logger.info("Binding socket at \"%s\"", config.netcontrol_socket_file)
     with UnixStreamServer(config.netcontrol_socket_file, NetcontrolProtocolHandler) as server:
-        print(f"Listening on {config.netcontrol_socket_file}")
+        logger.info("Listening on \"%s\".", config.netcontrol_socket_file)
+
         server.serve_forever()
